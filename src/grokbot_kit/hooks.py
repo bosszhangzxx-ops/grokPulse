@@ -26,13 +26,20 @@ nunca inventamos número. Por task do Claude (`TaskCreated`/`TaskCompleted`, `cl
 gravamos o delta da janela quando há instantâneo nos dois eventos; sem ele, sem número.
 
 Nunca gravamos conteúdo de arquivo, resposta de ferramenta, env nem segredos: só nomes de
-ferramenta, ids, caminhos, e trechos curtos já truncados e redigidos (segurança: sem tokens)."""
+ferramenta, ids, caminhos, e trechos curtos já truncados e redigidos (segurança: sem tokens).
+
+Com `GROKBOT_SUPABASE_URL`/`GROKBOT_SUPABASE_ANON_KEY` (ou `SUPABASE_URL`/`SUPABASE_ANON_KEY`) na
+ambiente, os mesmos tempos e contadores também vão para o Supabase via `supabase_sync` (upsert em
+`claude_sessions`/`claude_tasks`); é best-effort — sem configuração fica desligado, com falha só
+sobram linhas no `kit.log`."""
 
 import json
 import os
 import re
 from datetime import UTC, datetime
 from typing import Any, cast
+
+from . import supabase_sync
 
 EVENTS = (
     "SessionStart",
@@ -261,6 +268,9 @@ def _enrich(record: dict[str, object], data: dict[str, object], task_dir: str) -
         current, previous = _parse_at(at), _parse_at(session.get("started_at"))
         if current is not None and (previous is None or current < previous):
             session["started_at"] = at
+        if isinstance(session.get("started_at"), str):
+            # o record acompanha o início mais antigo: duração e `started_at` nunca discordam
+            record["started_at"] = session["started_at"]
     elif event == "SessionEnd":
         record["ended_at"] = at
         session["ended_at"] = at
@@ -282,6 +292,7 @@ def _enrich(record: dict[str, object], data: dict[str, object], task_dir: str) -
             return
         task: dict[str, Any] = tasks.setdefault(claude_task_id, {"claude_task_id": claude_task_id})
         task["started_at"] = at
+        record["started_at"] = at
         if record.get("subject") is not None:
             task["subject"] = record["subject"]
         usage = transcript_usage(data.get("transcript_path"))
@@ -293,9 +304,12 @@ def _enrich(record: dict[str, object], data: dict[str, object], task_dir: str) -
             return
         task = tasks.setdefault(claude_task_id, {"claude_task_id": claude_task_id})
         task["ended_at"] = at
+        record["ended_at"] = at
+        if isinstance(task.get("started_at"), str):
+            record["started_at"] = task["started_at"]
         started, ended = _parse_at(task.get("started_at")), _parse_at(at)
         if started is not None and ended is not None:
-            task["duration_seconds"] = round((ended - started).total_seconds(), 3)
+            record["duration_seconds"] = task["duration_seconds"] = round((ended - started).total_seconds(), 3)
         snapshot = task.pop("_snapshot", None)
         delta = _window_delta(snapshot, transcript_usage(data.get("transcript_path")))
         if delta is not None:
@@ -480,6 +494,11 @@ def handle(data: object, task_id: str, task_dir: str) -> None:
             os.path.join(task_dir, "hooks-events.jsonl"),
             json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n",
         )
+        try:
+            # upsert no Supabase é bônus: gravamos o evento local antes e qualquer falha vira só log
+            supabase_sync.sync(record, data, task_dir)
+        except Exception as e:  # noqa: BLE001 - o hook nunca pode falhar a task
+            _log_kit(task_dir, f"cannot sync {record['event']!r} to supabase: {type(e).__name__}: {e}")
     except Exception as e:  # noqa: BLE001 - o hook nunca pode falhar o agente
         name = data.get("hook_event_name") if isinstance(data, dict) else None
         _log_kit(task_dir, f"cannot record {name!r}: {type(e).__name__}: {e}")

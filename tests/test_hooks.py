@@ -401,6 +401,11 @@ def test_task_window_tokens_are_the_delta_of_the_transcript(tmp_path: Path) -> N
     assert task["subject"] == "Implement user authentication"
     assert task["started_at"] and task["ended_at"] and task["duration_seconds"] >= 0
     assert "_snapshot" not in task
+    # os tempos do record espelham os da task: é o record que o sync do Supabase upserta
+    created = records_of(task_dir)[-2]
+    assert created["started_at"] == task["started_at"]
+    assert done["started_at"] == task["started_at"] and done["ended_at"] == task["ended_at"]
+    assert done["duration_seconds"] == task["duration_seconds"] >= 0
     line = (task_dir / "hooks.log").read_text(encoding="utf-8").splitlines()[-1]
     assert "claude_task_id=task-001" in line and "total_tokens=13" in line
 

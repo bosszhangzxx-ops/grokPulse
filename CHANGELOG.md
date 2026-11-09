@@ -10,6 +10,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- The Claude Code hooks can upsert their session/task metrics into Supabase: with `GROKBOT_SUPABASE_URL` and
+  `GROKBOT_SUPABASE_ANON_KEY` (or `SUPABASE_URL`/`SUPABASE_ANON_KEY`) in the environment, `SessionStart`/`SessionEnd`
+  upsert a `claude_sessions` row and `TaskCreated`/`TaskCompleted` upsert a `claude_tasks` row (status, times, duration,
+  token counters; redacted payload only). The sync is best-effort — disabled without configuration, and a failure only
+  logs to `kit.log`, never failing the task.
+
 - Fork snapshot of [rodrigo-pasini/grokbot-kit](https://github.com/rodrigo-pasini/grokbot-kit) @ `51174f6` (0.7.0) with
   Claude Code Hooks listening for Grok Bot: 9 progress hooks plus `PermissionRequest`.
 - The Claude Code hooks now record session timing and token usage: `SessionStart` writes `started_at`, `SessionEnd`

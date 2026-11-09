@@ -101,6 +101,16 @@ grokbot-kit run --target meubot --label renomear-vars -- "Renomeie as variáveis
 consegue instalar o kit, instalar e logar nas CLIs que você escolher, criar a rota para a própria routine e delegar
 tarefas escolhendo CLI e modelo.
 
+## Métricas de sessão no Supabase
+
+Com `GROKBOT_SUPABASE_URL` e `GROKBOT_SUPABASE_ANON_KEY` no ambiente (`SUPABASE_URL`/`SUPABASE_ANON_KEY` também
+funcionam), os hooks do Claude Code também fazem upsert das métricas do `session-metrics.json` no Supabase: os eventos
+`SessionStart` e `SessionEnd` gravam uma linha em `claude_sessions` (status, `started_at`, `ended_at`,
+`duration_seconds`, contadores de tokens) e `TaskCreated`/`TaskCompleted` gravam uma linha em `claude_tasks` (título,
+status, tempos, tokens do delta da janela). O sync é best-effort: sem as variáveis fica desligado e qualquer falha vira
+apenas uma linha no `kit.log` — um hook nunca derruba uma tarefa. Saem daqui só ids, timestamps, contadores, modelo/cwd
+e o subject da task já redigido: nenhum conteúdo e nenhum segredo.
+
 ## Comandos
 
 | Comando | O que faz |

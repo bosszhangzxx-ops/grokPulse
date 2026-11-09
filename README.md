@@ -103,6 +103,15 @@ grokbot-kit run --target mybot --label rename-vars -- "Rename the variables in x
 install the kit, install and log in to the CLIs you choose, create the route to its own routine, and delegate tasks
 choosing CLI and model.
 
+## Supabase session metrics
+
+With `GROKBOT_SUPABASE_URL` and `GROKBOT_SUPABASE_ANON_KEY` set in the environment (`SUPABASE_URL`/`SUPABASE_ANON_KEY`
+also work), the Claude Code hooks also upsert the metrics of `session-metrics.json` into Supabase: `SessionStart` and
+`SessionEnd` upsert a `claude_sessions` row (status, `started_at`, `ended_at`, `duration_seconds`, token counters) and
+`TaskCreated`/`TaskCompleted` upsert a `claude_tasks` row (title, status, times, window-delta tokens). The sync is
+best-effort: without the variables it is off, and any failure is only a `kit.log` line — a hook never fails a task. Only
+ids, timestamps, counters, model/cwd and the already redacted task subject are sent; no content and no secrets.
+
 ## Commands
 
 | Command | What it does |
