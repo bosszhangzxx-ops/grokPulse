@@ -12,6 +12,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Fork snapshot of [rodrigo-pasini/grokbot-kit](https://github.com/rodrigo-pasini/grokbot-kit) @ `51174f6` (0.7.0) with
   Claude Code Hooks listening for Grok Bot: 9 progress hooks plus `PermissionRequest`.
+- The Claude Code hooks now record session timing and token usage: `SessionStart` writes `started_at`, `SessionEnd`
+  writes `ended_at` and `duration_seconds`, and both plus the log lines carry real token counters aggregated from the
+  session transcript `message.usage` (`input_tokens`, `output_tokens`, `cache_creation_input_tokens`,
+  `cache_read_input_tokens`, `total_tokens`, `api_requests`, `thinking_tokens` from `output_tokens_details`). The new
+  `session-metrics.json` in the task dir keeps the
+  per-session record and, when both `TaskCreated` and `TaskCompleted` snapshots exist, the per-`claude_task_id` window
+  delta. With no readable transcript the counters are omitted (`tokens.source = "unavailable"`), never invented.
 
 ## [0.7.0] - 2026-11-06
 

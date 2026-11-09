@@ -5,11 +5,25 @@ TaskCompleted, Notification e SessionEnd. O `emit` encaminha cada evento aqui e 
 registramos, nunca decidimos (a decisão continua só no PermissionRequest) e nunca propaga exceção
 para o Claude Code.
 
-Dois arquivos por task, no task dir (um log por task; sessions não se misturam porque cada linha
+Três arquivos por task, no task dir (um log por task; sessions não se misturam porque cada linha
 carrega `session_id`):
 
 - `hooks.log`: linhas `[HOOK] <Evento> | task_id=... | session_id=... | ... | at=<rfc3339>`;
-- `hooks-events.jsonl`: um objeto JSON por evento, para um painel de progresso em tempo real.
+- `hooks-events.jsonl`: um objeto JSON por evento, para um painel de progresso em tempo real;
+- `session-metrics.json`: tempos e tokens por session, mais as janelas por `claude_task_id`.
+
+Tempos: o `SessionStart` grava `started_at`, o `SessionEnd` grava `ended_at` e
+`duration_seconds = ended_at - started_at` (ambos do `at` do evento, RFC 3339).
+
+Tokens: o agregado real de `message.usage` das entradas `assistant` do transcript da session
+(`transcript_path` do hook), com os campos que o transcript traz: `input_tokens`, `output_tokens`,
+`cache_creation_input_tokens` e `cache_read_input_tokens`, mais `total_tokens` (soma dos quatro),
+`api_requests` (mensagens distintas com uso) e `thinking_tokens` (de `output_tokens_details`, já
+incluído em `output_tokens`, por isso fora do `total_tokens`). O mesmo `message.id` aparece uma vez por bloco de
+stream, com uso parcial no primeiro e completo no último: cada id conta uma vez, ficando a linha mais
+cheia. Sem transcript legível os campos de contagem ficam de fora e `tokens.source = "unavailable"`:
+nunca inventamos número. Por task do Claude (`TaskCreated`/`TaskCompleted`, `claude_task_id`)
+gravamos o delta da janela quando há instantâneo nos dois eventos; sem ele, sem número.
 
 Nunca gravamos conteúdo de arquivo, resposta de ferramenta, env nem segredos: só nomes de
 ferramenta, ids, caminhos, e trechos curtos já truncados e redigidos (segurança: sem tokens)."""
@@ -18,6 +32,7 @@ import json
 import os
 import re
 from datetime import UTC, datetime
+from typing import Any, cast
 
 EVENTS = (
     "SessionStart",
@@ -31,8 +46,12 @@ EVENTS = (
     "SessionEnd",
 )
 SCHEMA = "grokbot-kit.hook/v1"
+METRICS_SCHEMA = "grokbot-kit.session-metrics/v1"
+METRICS_FILE = "session-metrics.json"
 MAX_TEXT = 200
 SAFE_VALUE = re.compile(r"^[A-Za-z0-9._:/=+-]+$")
+# contadores reais de `message.usage` no transcript; `total_tokens` é a soma destes quatro
+TOKEN_KEYS = ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
 
 # trechos que parecem segredo viram `<redacted>` (a chave continua visível para diagnóstico);
 # o `bearer` primeiro, senão o valor dele escapa da regra de `chave=valor`
@@ -46,6 +65,16 @@ _REDACTIONS = (
 
 def rfc3339(moment: datetime) -> str:
     return moment.astimezone(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def _parse_at(value: object) -> datetime | None:
+    """O timestamp RFC 3339 que gravamos, ou `None` quando não é um texto parseável."""
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
 
 
 def _redact(text: str) -> str:
@@ -78,6 +107,202 @@ def _detail(tool_input: object) -> str | None:
     return _clip(tool_input)
 
 
+def _usage(usage: object) -> dict[str, int] | None:
+    """Os contadores de tokens não-negativos de um `message.usage`, ou `None` sem nenhum.
+
+    Além dos quatro contadores de `TOKEN_KEYS`, guarda `thinking_tokens` quando o transcript traz
+    `output_tokens_details` (raciocínio, já incluso em `output_tokens`; não soma em `total_tokens`)."""
+    if not isinstance(usage, dict):
+        return None
+    counted: dict[str, int] = {}
+    for key in TOKEN_KEYS:
+        value = usage.get(key)
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            counted[key] = value
+    details = usage.get("output_tokens_details")
+    if isinstance(details, dict):
+        thinking = details.get("thinking_tokens")
+        if isinstance(thinking, int) and not isinstance(thinking, bool) and thinking >= 0:
+            counted["thinking_tokens"] = thinking
+    return counted or None
+
+
+def _usage_weight(usage: dict[str, int]) -> tuple[int, int]:
+    """A linha mais cheia de um `message.id` vence: os blocos de stream repetem o id com uso parcial
+    (sem `output_tokens` ainda); o desempate é a soma dos contadores."""
+    return usage.get("output_tokens", 0), sum(usage.values())
+
+
+def transcript_usage(path: object) -> dict[str, Any] | None:
+    """O uso de tokens real da session somado do transcript JSONL do Claude Code, ou `None` ilegível.
+
+    Cada entrada `assistant` traz `message.usage`; o mesmo `message.id` se repete por bloco de stream
+    (o primeiro com `output_tokens` parcial) e conta uma vez, com a linha de uso mais completo. Com o
+    arquivo legível mas sem nenhum uso registrado devolve `source: "unavailable"`, sem contagens."""
+    if not isinstance(path, str) or not path:
+        return None
+    fullest: dict[str, dict[str, int]] = {}
+    anonymous = 0
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    entry = json.loads(line)
+                except ValueError:
+                    continue
+                if not isinstance(entry, dict) or entry.get("type") != "assistant":
+                    continue
+                message = entry.get("message")
+                message = message if isinstance(message, dict) else {}
+                usage = _usage(message.get("usage"))
+                if usage is None:
+                    continue
+                key = message.get("id")
+                if not (isinstance(key, str) and key):
+                    anonymous += 1
+                    key = f"<anonymous:{anonymous}>"
+                previous = fullest.get(key)
+                if previous is None or _usage_weight(usage) > _usage_weight(previous):
+                    fullest[key] = usage
+    except OSError:
+        return None
+    if not fullest:
+        return {"source": "unavailable", "reason": "no usage entries in transcript"}
+    totals = {key: sum(u.get(key, 0) for u in fullest.values()) for key in TOKEN_KEYS}
+    out: dict[str, Any] = {
+        **totals,
+        "total_tokens": sum(totals.values()),
+        "api_requests": len(fullest),
+        "source": "transcript",
+    }
+    thinking = [u["thinking_tokens"] for u in fullest.values() if "thinking_tokens" in u]
+    if thinking:
+        out["thinking_tokens"] = sum(thinking)
+    return out
+
+
+def _unavailable(reason: str) -> dict[str, str]:
+    return {"source": "unavailable", "reason": reason}
+
+
+def _counted(usage: object) -> bool:
+    return isinstance(usage, dict) and any(isinstance(usage.get(key), int) for key in TOKEN_KEYS)
+
+
+def _window_delta(started: object, ended: object) -> dict[str, Any] | None:
+    """O delta entre dois instantâneos acumulados do transcript, ou `None` quando não fecha a conta."""
+    if not (_counted(started) and _counted(ended)):
+        return None
+    begin_snap = cast("dict[str, Any]", started)
+    end_snap = cast("dict[str, Any]", ended)
+    delta: dict[str, Any] = {}
+    for key in TOKEN_KEYS:
+        begin, finish = int(begin_snap.get(key, 0)), int(end_snap.get(key, 0))
+        if finish < begin:
+            return None
+        delta[key] = finish - begin
+    delta["total_tokens"] = sum(int(delta[key]) for key in TOKEN_KEYS)
+    begin_think, end_think = begin_snap.get("thinking_tokens"), end_snap.get("thinking_tokens")
+    if isinstance(begin_think, int) and isinstance(end_think, int):
+        if end_think < begin_think:
+            return None
+        delta["thinking_tokens"] = end_think - begin_think
+    begin_req, finish_req = begin_snap.get("api_requests"), end_snap.get("api_requests")
+    if isinstance(begin_req, int) and isinstance(finish_req, int) and finish_req >= begin_req:
+        delta["api_requests"] = finish_req - begin_req
+    delta["source"] = "transcript-window-delta"
+    return delta
+
+
+def _load_metrics(task_dir: str) -> dict[str, Any]:
+    try:
+        with open(os.path.join(task_dir, METRICS_FILE), encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict) and isinstance(data.get("sessions"), dict) and isinstance(data.get("tasks"), dict):
+            return cast("dict[str, Any]", data)
+    except (OSError, ValueError):
+        pass
+    return {"schema": METRICS_SCHEMA, "sessions": {}, "tasks": {}}
+
+
+def _save_metrics(task_dir: str, metrics: dict[str, Any]) -> None:
+    """Troca atômica do arquivo inteiro: nunca fica pela metade."""
+    final = os.path.join(task_dir, METRICS_FILE)
+    tmp = f"{final}.{os.getpid()}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(metrics, f, ensure_ascii=False)
+        f.write("\n")
+    os.replace(tmp, final)
+
+
+def _snapshot(usage: dict[str, Any]) -> dict[str, int]:
+    keys = (*TOKEN_KEYS, "api_requests", "thinking_tokens")
+    return {key: int(usage[key]) for key in keys if isinstance(usage.get(key), int)}
+
+
+def _enrich(record: dict[str, object], data: dict[str, object], task_dir: str) -> None:
+    """Completa o registro com tempos e tokens e mantém o `session-metrics.json`; nunca propaga erro.
+
+    Só os eventos de sessão e de task do Claude tocam o arquivo; os demais (ferramentas, notificações)
+    não têm o que agregar e ficam só no log/jsonl."""
+    event = record["event"]
+    if event not in ("SessionStart", "SessionEnd", "TaskCreated", "TaskCompleted"):
+        return
+    metrics = _load_metrics(task_dir)
+    sessions: dict[str, Any] = metrics["sessions"]
+    tasks: dict[str, Any] = metrics["tasks"]
+    session_id = record.get("session_id")
+    key = session_id if isinstance(session_id, str) else "unknown"
+    session: dict[str, Any] = sessions.setdefault(key, {"session_id": key})
+    at = record["at"]
+    if event == "SessionStart":
+        record["started_at"] = at
+        # uma session retomada (resume/compact) mantém o início mais antigo: a duração real é da primeira
+        current, previous = _parse_at(at), _parse_at(session.get("started_at"))
+        if current is not None and (previous is None or current < previous):
+            session["started_at"] = at
+    elif event == "SessionEnd":
+        record["ended_at"] = at
+        session["ended_at"] = at
+        started, ended = _parse_at(session.get("started_at")), _parse_at(at)
+        if started is not None and ended is not None:
+            record["duration_seconds"] = session["duration_seconds"] = round((ended - started).total_seconds(), 3)
+        if record.get("reason") is not None:
+            session["end_reason"] = record["reason"]
+        tokens = transcript_usage(data.get("transcript_path"))
+        if tokens is None:
+            given = data.get("transcript_path")
+            tokens = _unavailable(
+                "transcript not readable" if isinstance(given, str) and given else "hook input has no transcript_path"
+            )
+        record["tokens"] = session["tokens"] = tokens
+    elif event == "TaskCreated":
+        claude_task_id = record.get("claude_task_id")
+        if not isinstance(claude_task_id, str) or not claude_task_id:
+            return
+        task: dict[str, Any] = tasks.setdefault(claude_task_id, {"claude_task_id": claude_task_id})
+        task["started_at"] = at
+        if record.get("subject") is not None:
+            task["subject"] = record["subject"]
+        usage = transcript_usage(data.get("transcript_path"))
+        if usage is not None and _counted(usage):
+            task["_snapshot"] = _snapshot(usage)
+    elif event == "TaskCompleted":
+        claude_task_id = record.get("claude_task_id")
+        if not isinstance(claude_task_id, str) or not claude_task_id:
+            return
+        task = tasks.setdefault(claude_task_id, {"claude_task_id": claude_task_id})
+        task["ended_at"] = at
+        started, ended = _parse_at(task.get("started_at")), _parse_at(at)
+        if started is not None and ended is not None:
+            task["duration_seconds"] = round((ended - started).total_seconds(), 3)
+        snapshot = task.pop("_snapshot", None)
+        delta = _window_delta(snapshot, transcript_usage(data.get("transcript_path")))
+        if delta is not None:
+            record["tokens"] = task["tokens"] = delta
+    _save_metrics(task_dir, metrics)
+
+
 def build_record(data: dict[str, object], task_id: str) -> dict[str, object]:
     """O evento recebido em campos próprios do `grokbot-kit.hook/v1`, com tolerância a entradas estranhas."""
     event = str(data.get("hook_event_name") or "unknown")
@@ -94,6 +319,7 @@ def build_record(data: dict[str, object], task_id: str) -> dict[str, object]:
             record[key] = value
     if event == "SessionStart":
         record["source"] = data.get("source")
+        record["started_at"] = record["at"]
         model = _clip(data.get("model"), 100)
         if model:
             record["model"] = model
@@ -148,6 +374,7 @@ def build_record(data: dict[str, object], task_id: str) -> dict[str, object]:
             record["message"] = message
     elif event == "SessionEnd":
         record["reason"] = data.get("reason") if isinstance(data.get("reason"), str) else None
+        record["ended_at"] = record["at"]
     return record
 
 
@@ -155,6 +382,18 @@ def _quote(value: object) -> str:
     if isinstance(value, str) and SAFE_VALUE.match(value):
         return value
     return json.dumps(value, ensure_ascii=False)
+
+
+def _token_parts(tokens: object) -> list[str]:
+    """Os contadores de `tokens` em pares `campo=valor`; sem contagem, sem parte."""
+    if not isinstance(tokens, dict):
+        return []
+    parts = []
+    for key in (*TOKEN_KEYS, "total_tokens", "api_requests", "thinking_tokens"):
+        value = tokens.get(key)
+        if isinstance(value, int) and not isinstance(value, bool):
+            parts.append(f"{key}={value}")
+    return parts
 
 
 def build_line(record: dict[str, object]) -> str:
@@ -167,6 +406,7 @@ def build_line(record: dict[str, object]) -> str:
         parts.append(f"source={_quote(record.get('source'))}")
         if record.get("model"):
             parts.append(f"model={_quote(record['model'])}")
+        parts.append(f"started_at={record['started_at']}")
     elif event in ("PreToolUse", "PostToolUse", "PostToolUseFailure"):
         parts.append(f"tool={_quote(record.get('tool_name'))}")
         parts.append(f"tool_use_id={_quote(record.get('tool_use_id'))}")
@@ -188,12 +428,20 @@ def build_line(record: dict[str, object]) -> str:
             parts.append(f"claude_task_id={_quote(record['claude_task_id'])}")
         if record.get("subject") is not None:
             parts.append(f"subject={_quote(record['subject'])}")
+        if event == "TaskCompleted":
+            if record.get("duration_seconds") is not None:
+                parts.append(f"duration_seconds={record['duration_seconds']}")
+            parts.extend(_token_parts(record.get("tokens")))
     elif event == "Notification":
         parts.append(f"type={_quote(record.get('type'))}")
         if record.get("message") is not None:
             parts.append(f"message={_quote(record['message'])}")
     elif event == "SessionEnd":
         parts.append(f"reason={_quote(record.get('reason'))}")
+        parts.append(f"ended_at={record['ended_at']}")
+        if record.get("duration_seconds") is not None:
+            parts.append(f"duration_seconds={record['duration_seconds']}")
+        parts.extend(_token_parts(record.get("tokens")))
     parts.append(f"at={record['at']}")
     return " | ".join(parts)
 
@@ -222,6 +470,10 @@ def handle(data: object, task_id: str, task_dir: str) -> None:
             raise TypeError(f"hook input is {type(data).__name__}, not an object")
         os.makedirs(task_dir, mode=0o700, exist_ok=True)
         record = build_record(data, task_id)
+        try:
+            _enrich(record, data, task_dir)
+        except Exception as e:  # noqa: BLE001 - métrica é bônus; o registro do evento continua
+            _log_kit(task_dir, f"cannot compute metrics for {record['event']!r}: {type(e).__name__}: {e}")
         line = build_line(record)
         _append(os.path.join(task_dir, "hooks.log"), line + "\n")
         _append(
