@@ -1,0 +1,22 @@
+schema = "grokbot-kit.plugin/v0"
+name = "bug-verify"
+version = "0.1.0"
+description = "Verifica um alerta de erro contra o código: reproduz com um teste quando dá e aponta os suspeitos"
+prompt = "prompt.md"
+
+[inputs.repo]
+kind = "repo"
+required = true
+
+[inputs.alert]
+kind = "text"
+required = true
+
+[capabilities]
+write = "task-dir"
+network = "on"
+commands = ["git log", "git diff", "git show", "git blame", "pytest", "npm test", "go test", "cargo test"]
+
+[result]
+required = ["summary", "reproduced", "suspects", "next_step"]
+max_bytes = 16384

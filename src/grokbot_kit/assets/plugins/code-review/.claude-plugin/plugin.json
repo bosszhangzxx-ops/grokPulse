@@ -1,0 +1,5 @@
+{
+  "name": "code-review",
+  "version": "0.1.0",
+  "description": "Revisa um pull request do GitHub e posta um único review COMMENT com comentários inline"
+}

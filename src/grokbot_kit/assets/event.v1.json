@@ -1,0 +1,392 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rodrigo-pasini/grokbot-kit/blob/main/src/grokbot_kit/assets/event.v1.json",
+  "title": "grokbot-kit.event/v1",
+  "description": "Evento enviado pelo grokbot-kit aos sinks de um target (door 2). Os campos de task só são null em event: test. plugin e result só não são null em tarefa de plugin (door 5 da feature plugins).",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "grokbot-kit.event/v1"
+    },
+    "event": {
+      "enum": [
+        "completed",
+        "error",
+        "timeout",
+        "needs_input",
+        "test"
+      ]
+    },
+    "status": {
+      "enum": [
+        "ok",
+        "denied",
+        "failed",
+        "interrupted",
+        "timeout",
+        "permission",
+        "question",
+        "test"
+      ]
+    },
+    "task_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "task_label": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "target": {
+      "type": "string"
+    },
+    "tool": {
+      "enum": [
+        "opencode",
+        "claude",
+        "codex",
+        null
+      ]
+    },
+    "model": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "model_source": {
+      "enum": [
+        "user",
+        "tier",
+        "default",
+        null
+      ]
+    },
+    "model_fallbacks": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "model",
+          "error"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "tier": {
+      "enum": [
+        "trivial",
+        "standard",
+        "complex",
+        null
+      ]
+    },
+    "session_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "cwd": {
+      "type": "string"
+    },
+    "repo": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "root": {
+              "type": "string"
+            },
+            "branch": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "head": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "root",
+            "branch",
+            "head"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "exit_code": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "exit_reason": {
+      "enum": [
+        "success",
+        "permission_denied",
+        "agent_error",
+        "nonzero_exit",
+        "timeout",
+        "interrupted",
+        "needs_input",
+        "result_invalid",
+        null
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "needs_input": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string"
+            },
+            "tool_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "detail": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "reply_deadline": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "tool_name",
+            "detail",
+            "request_id",
+            "reply_deadline"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "resume_hint": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "output_file": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "transcript_path": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "log_file": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "started_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "plugin": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            },
+            "source": {
+              "enum": [
+                "builtin",
+                "dir",
+                "git"
+              ]
+            },
+            "commit": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "name",
+            "version",
+            "source",
+            "commit"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "result": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "schema",
+    "event",
+    "status",
+    "task_id",
+    "task_label",
+    "target",
+    "tool",
+    "model",
+    "model_source",
+    "model_fallbacks",
+    "tier",
+    "session_id",
+    "cwd",
+    "repo",
+    "exit_code",
+    "exit_reason",
+    "summary",
+    "needs_input",
+    "resume_hint",
+    "output_file",
+    "transcript_path",
+    "log_file",
+    "started_at",
+    "plugin",
+    "result",
+    "timestamp"
+  ],
+  "additionalProperties": false,
+  "if": {
+    "properties": {
+      "event": {
+        "const": "test"
+      }
+    }
+  },
+  "then": {
+    "properties": {
+      "task_id": {
+        "type": "null"
+      },
+      "task_label": {
+        "type": "null"
+      },
+      "tool": {
+        "type": "null"
+      },
+      "model": {
+        "type": "null"
+      },
+      "model_source": {
+        "type": "null"
+      },
+      "output_file": {
+        "type": "null"
+      },
+      "log_file": {
+        "type": "null"
+      },
+      "started_at": {
+        "type": "null"
+      }
+    }
+  },
+  "else": {
+    "properties": {
+      "task_id": {
+        "not": {
+          "type": "null"
+        }
+      },
+      "task_label": {
+        "not": {
+          "type": "null"
+        }
+      },
+      "tool": {
+        "not": {
+          "type": "null"
+        }
+      },
+      "model": {
+        "not": {
+          "type": "null"
+        }
+      },
+      "model_source": {
+        "not": {
+          "type": "null"
+        }
+      },
+      "output_file": {
+        "not": {
+          "type": "null"
+        }
+      },
+      "log_file": {
+        "not": {
+          "type": "null"
+        }
+      },
+      "started_at": {
+        "not": {
+          "type": "null"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+"""`gh` falso dos testes de `run --plugin` e do `doctor`.
+
+`gh repo clone <owner/repo> <dir> [-- <args do git>]` clona o repositório git local de `FAKE_GH_REPO` (com os args
+depois de `--`, como o `gh` real); `gh pr checkout <n>` cria e troca para a branch `pr-<n>` no clone. `FAKE_GH_EXIT`
+força o exit desses dois comandos, com uma mensagem em stderr; `gh auth status` sai com `FAKE_GH_AUTH_EXIT` (padrão
+`0`). `FAKE_GH_LOG` acumula uma linha JSON por chamada (argv e cwd).
+"""
+
+import json
+import os
+import subprocess
+import sys
+
+args = sys.argv[1:]
+log = os.environ.get("FAKE_GH_LOG")
+if log:
+    with open(log, "a", encoding="utf-8") as f:
+        f.write(json.dumps({"argv": args, "cwd": os.getcwd()}) + "\n")
+
+if args[:2] == ["auth", "status"]:
+    code = int(os.environ.get("FAKE_GH_AUTH_EXIT", "0"))
+    print("You are not logged into any GitHub hosts" if code else "Logged in to github.com", file=sys.stderr)
+    sys.exit(code)
+
+if args[:2] in (["repo", "clone"], ["pr", "checkout"]) and os.environ.get("FAKE_GH_EXIT"):
+    print(f"GraphQL: Could not resolve to a Repository ({' '.join(args)})", file=sys.stderr)
+    sys.exit(int(os.environ["FAKE_GH_EXIT"]))
+
+if args[:2] == ["repo", "clone"]:
+    extra = args[args.index("--") + 1 :] if "--" in args else []
+    proc = subprocess.run(["git", "clone", "-q", *extra, os.environ["FAKE_GH_REPO"], args[3]], check=False)
+    sys.exit(proc.returncode)
+
+if args[:2] == ["pr", "checkout"]:
+    proc = subprocess.run(["git", "checkout", "-q", "-b", f"pr-{args[2]}"], check=False)
+    sys.exit(proc.returncode)
+
+print(f"fake gh: unsupported command: {' '.join(args)}", file=sys.stderr)
+sys.exit(1)

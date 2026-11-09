@@ -1,0 +1,47 @@
+name: Bug report
+description: Something in grokbot-kit does not work as documented
+labels: ["needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not paste secrets.** Routine URLs, `crsr_` keys, API keys and tokens must never appear in an issue,
+        a log excerpt or a screenshot. Redact them before posting; if one leaked, regenerate it.
+  - type: input
+    id: grokbot-kit-version
+    attributes:
+      label: grokbot-kit version
+      description: Output of `grokbot-kit --version`
+    validations:
+      required: true
+  - type: dropdown
+    id: cli
+    attributes:
+      label: Agent CLI
+      options:
+        - opencode
+        - claude
+        - codex
+        - none / not related to a CLI
+    validations:
+      required: true
+  - type: input
+    id: cli-version
+    attributes:
+      label: CLI version
+      description: Output of `opencode --version`, `claude --version` or `codex --version`
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: The command you ran, what you expected and what happened instead. Do not paste secrets.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output
+      description: stderr, `kit.log` or `grokbot-kit doctor --json`, with any secret redacted.
+      render: text

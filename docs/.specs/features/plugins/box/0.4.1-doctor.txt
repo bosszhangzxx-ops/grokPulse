@@ -1,0 +1,17 @@
+$ grokbot-kit --version
+grokbot-kit 0.4.1
+
+$ grokbot-kit doctor
+grokbot-kit 0.4.1 (Python 3.15.0, /home/box/.local/share/uv/tools/grokbot-kit/bin/python)
+opencode (default): 1.19.3 at /home/box/.opencode/bin/opencode
+  login: not logged in (subscription, opencode auth list); tiers: trivial 3, standard 3, complex 1
+  plugin: ok (/home/box/.config/opencode/plugins/grokbot-kit.ts)
+route mybot: mybot
+secret mybot-key: 0600
+secret mybot-url: 0600
+plugin bug-verify 0.1.0 (builtin)
+plugin code-review 0.1.0 (builtin)
+plugin support opencode: write=tool network=unsupported commands=tool workspace_config=tool skills=tool
+plugin support claude: write=tool network=unsupported commands=tool workspace_config=tool skills=tool
+plugin support codex: write=unsupported network=unsupported commands=unsupported workspace_config=unsupported skills=unsupported
+ok

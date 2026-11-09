@@ -1,0 +1,13 @@
+grokbot-kit
+Copyright (c) 2026 Rodrigo Pasini
+Licensed under the MIT License (see LICENSE).
+
+This repository also contains third-party material that is not part of the
+grokbot-kit package and is not covered by its MIT license:
+
+Agent skills in .claude/skills/ (tlc-discover, tlc-implement, tlc-plan,
+tlc-prd, tlc-spec-driven, tlc-spec-lean)
+  Source: tech-leads-club/agent-skills (https://github.com/tech-leads-club/agent-skills)
+  License: CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/)
+  Copied unmodified with `npx @tech-leads-club/agent-skills`; see each
+  skill's SKILL.md for its authorship.

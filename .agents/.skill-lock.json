@@ -1,0 +1,77 @@
+{
+  "version": 2,
+  "skills": {
+    "tlc-spec-driven": {
+      "name": "tlc-spec-driven",
+      "source": "local",
+      "contentHash": "9f4c793556001f3210a2d9fe3b41bf24e82e581c522d8dd50f65addfee169a29",
+      "installedAt": "2026-10-19T11:12:28.798Z",
+      "updatedAt": "2026-10-19T11:12:28.798Z",
+      "agents": [
+        "claude-code"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "tlc-discover": {
+      "name": "tlc-discover",
+      "source": "local",
+      "contentHash": "518ab626fc8bac4ed1d0c5170b617d1adaec28a83634c1a462c7529d42170d3a",
+      "installedAt": "2026-10-19T11:12:28.806Z",
+      "updatedAt": "2026-10-19T11:12:28.806Z",
+      "agents": [
+        "claude-code"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "tlc-prd": {
+      "name": "tlc-prd",
+      "source": "local",
+      "contentHash": "ce417e8df0cff1870fbfdd157959e6efbdc6b1b547c57ac3850134e8f70bba80",
+      "installedAt": "2026-10-19T11:12:28.810Z",
+      "updatedAt": "2026-10-19T11:12:28.810Z",
+      "agents": [
+        "claude-code"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "tlc-plan": {
+      "name": "tlc-plan",
+      "source": "local",
+      "contentHash": "428b064742db100add4d42612ce61eaed040aad87e6718e494a09ad9ae03552b",
+      "installedAt": "2026-10-19T11:12:28.813Z",
+      "updatedAt": "2026-10-19T11:12:28.813Z",
+      "agents": [
+        "claude-code"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "tlc-implement": {
+      "name": "tlc-implement",
+      "source": "local",
+      "contentHash": "b3bbd69d067b042072e9538ea5edc90db28b0873fdf4d86157ca4ae5363bfd9e",
+      "installedAt": "2026-10-19T11:12:28.816Z",
+      "updatedAt": "2026-10-19T11:12:28.816Z",
+      "agents": [
+        "claude-code"
+      ],
+      "method": "copy",
+      "global": false
+    },
+    "tlc-spec-lean": {
+      "name": "tlc-spec-lean",
+      "source": "local",
+      "contentHash": "807aad338cc9e306f68fe9335bc5251a5e749e0bc3676998801e48bf2ff79a80",
+      "installedAt": "2026-10-19T11:12:28.820Z",
+      "updatedAt": "2026-10-19T11:12:28.820Z",
+      "agents": [
+        "claude-code"
+      ],
+      "method": "copy",
+      "global": false
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "worktree_base": "../worktrees",
+  "base_branches": { "default": "main" },
+  "branch_pattern": "<tipo>/<issue>/<slug>",
+  "copy": [".claude", ".env"],
+  "agent": "claude",
+  "handoff_skill": "tlc-spec-lean",
+  "notes": "GitHub Flow: tudo sai de main e volta por PR (main protegida, só squash). <issue> é o número do issue no GitHub."
+}

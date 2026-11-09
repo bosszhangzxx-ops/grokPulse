@@ -1,0 +1,21 @@
+# Python (spec S0, AC 13)
+.venv/
+__pycache__/
+dist/
+build/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+.env
+
+# Claude Code: config local por máquina
+.claude/settings.local.json
+CLAUDE.local.md
+
+# Cópia de leitura gerada da spec (AC 18: não versionar)
+docs/SPEC.md
+
+# Backup do instalador de skills
+.agents/*.backup

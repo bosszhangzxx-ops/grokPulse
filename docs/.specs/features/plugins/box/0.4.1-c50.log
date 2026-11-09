@@ -1,0 +1,18 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.17, pytest-9.1.1, pluggy-1.7.0 -- /tmp/gk-provas/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/gk-provas
+configfile: pyproject.toml
+plugins: platformdirs-4.13.5
+collecting ... collected 1 item
+
+tests/integration/test_builtin_plugins.py::test_code_review_posts_comment_review PASSED [100%]
+
+==================================== PASSES ====================================
+____________________ test_code_review_posts_comment_review _____________________
+----------------------------- Captured stderr call -----------------------------
+Cloning into '/tmp/pytest-of-box/pytest-3/test_code_review_posts_comment0/push'...
+=========================== short test summary info ============================
+PASSED tests/integration/test_builtin_plugins.py::test_code_review_posts_comment_review
+========================= 1 passed in 88.44s (0:01:28) =========================
+PYTEST_EXIT=0

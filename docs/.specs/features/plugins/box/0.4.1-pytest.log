@@ -1,0 +1,188 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.17, pytest-9.1.1, pluggy-1.7.0 -- /tmp/gk-provas/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/gk-provas
+configfile: pyproject.toml
+plugins: platformdirs-4.13.5
+collecting ... collected 29 items
+
+tests/integration/test_plugin_caps.py::test_write_outside_denied[claude] PASSED [  3%]
+tests/integration/test_plugin_caps.py::test_write_outside_denied[opencode] PASSED [  6%]
+tests/integration/test_plugin_caps.py::test_write_outside_denied[codex] SKIPPED [ 10%]
+tests/integration/test_plugin_caps.py::test_shell_escape_denied[claude] PASSED [ 13%]
+tests/integration/test_plugin_caps.py::test_shell_escape_denied[opencode] PASSED [ 17%]
+tests/integration/test_plugin_caps.py::test_shell_escape_denied[codex] SKIPPED [ 20%]
+tests/integration/test_plugin_caps.py::test_output_option_denied[claude] PASSED [ 24%]
+tests/integration/test_plugin_caps.py::test_output_option_denied[opencode] PASSED [ 27%]
+tests/integration/test_plugin_caps.py::test_output_option_denied[codex] SKIPPED [ 31%]
+tests/integration/test_plugin_caps.py::test_caller_cwd_not_writable[claude] PASSED [ 34%]
+tests/integration/test_plugin_caps.py::test_caller_cwd_not_writable[opencode] PASSED [ 37%]
+tests/integration/test_plugin_caps.py::test_caller_cwd_not_writable[codex] SKIPPED [ 41%]
+tests/integration/test_plugin_caps.py::test_command_outside_denied[claude] PASSED [ 44%]
+tests/integration/test_plugin_caps.py::test_command_outside_denied[opencode] PASSED [ 48%]
+tests/integration/test_plugin_caps.py::test_command_outside_denied[codex] SKIPPED [ 51%]
+tests/integration/test_plugin_caps.py::test_workspace_config_ignored[claude] PASSED [ 55%]
+tests/integration/test_plugin_caps.py::test_workspace_config_ignored[opencode] PASSED [ 58%]
+tests/integration/test_plugin_caps.py::test_workspace_config_ignored[codex] SKIPPED [ 62%]
+tests/integration/test_plugin_caps.py::test_plugin_skill_loaded[claude] PASSED [ 65%]
+tests/integration/test_plugin_caps.py::test_plugin_skill_loaded[opencode] PASSED [ 68%]
+tests/integration/test_plugin_caps.py::test_plugin_skill_loaded[codex] SKIPPED [ 72%]
+tests/integration/test_plugin_caps.py::test_network_off_denied[claude] SKIPPED [ 75%]
+tests/integration/test_plugin_caps.py::test_network_off_denied[opencode] SKIPPED [ 79%]
+tests/integration/test_plugin_caps.py::test_network_off_denied[codex] SKIPPED [ 82%]
+tests/integration/test_plugin_caps.py::test_run_plugin_claude_end_to_end PASSED [ 86%]
+tests/integration/test_builtin_plugins.py::test_code_review_loads_in_claude[code-review] PASSED [ 89%]
+tests/integration/test_builtin_plugins.py::test_code_review_loads_in_claude[bug-verify] PASSED [ 93%]
+tests/integration/test_builtin_plugins.py::test_code_review_posts_comment_review FAILED [ 96%]
+tests/integration/test_builtin_plugins.py::test_bug_verify_reproduces PASSED [100%]
+
+=================================== FAILURES ===================================
+____________________ test_code_review_posts_comment_review _____________________
+
+tmp_path = PosixPath('/tmp/pytest-of-box/pytest-2/test_code_review_posts_comment0')
+
+    def test_code_review_posts_comment_review(tmp_path: Path) -> None:
+        pr = env_or_fail("GROKBOT_KIT_IT_REVIEW_PR")
+        match = re.fullmatch(r"https://github\.com/([^/]+/[^/]+)/pull/(\d+)", pr)
+        assert match, pr
+        repo, number = match.groups()
+    
+        event = run_builtin(tmp_path / "um", "claude", "code-review", f"pr={pr}")
+        assert (event["event"], event["status"]) == ("completed", "ok"), event
+        review_url = event["result"]["review_url"]
+        assert review_url and review_url.startswith(pr), event["result"]
+        review_id = review_url.rsplit("pullrequestreview-", 1)[-1]
+        review = gh_json("api", f"repos/{repo}/pulls/{number}/reviews/{review_id}")
+        assert review["state"] == "COMMENTED", review
+    
+        # um commit novo na branch do PR, com um bug óbvio num arquivo que só ele toca
+        head = gh_json("pr", "view", pr, "--json", "headRefName")["headRefName"]
+        clone = tmp_path / "push"
+        subprocess.run(["gh", "repo", "clone", repo, str(clone), "--", "--branch", head], check=True)
+        novo = f"c50_{os.getpid()}.py"
+        (clone / novo).write_text("def media(xs):\n    return sum(xs) / 0\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(clone), "add", novo], check=True)
+>       subprocess.run(["git", "-C", str(clone), "commit", "-q", "-m", "test: commit novo do C50"], check=True)
+
+tests/integration/test_builtin_plugins.py:121: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+input = None, capture_output = False, timeout = None, check = True
+popenargs = (['git', '-C', '/tmp/pytest-of-box/pytest-2/test_code_review_posts_comment0/push', 'commit', '-q', '-m', ...],)
+kwargs = {}
+
+    def run(*popenargs,
+            input=None, capture_output=False, timeout=None, check=False, **kwargs):
+        """Run command with arguments and return a CompletedProcess instance.
+    
+        The returned instance will have attributes args, returncode, stdout and
+        stderr. By default, stdout and stderr are not captured, and those attributes
+        will be None. Pass stdout=PIPE and/or stderr=PIPE in order to capture them,
+        or pass capture_output=True to capture both.
+    
+        If check is True and the exit code was non-zero, it raises a
+        CalledProcessError. The CalledProcessError object will have the return code
+        in the returncode attribute, and output & stderr attributes if those streams
+        were captured.
+    
+        If timeout is given, and the process takes too long, a TimeoutExpired
+        exception will be raised.
+    
+        There is an optional argument "input", allowing you to
+        pass bytes or a string to the subprocess's stdin.  If you use this argument
+        you may not also use the Popen constructor's "stdin" argument, as
+        it will be used internally.
+    
+        By default, all communication is in bytes, and therefore any "input" should
+        be bytes, and the stdout and stderr will be bytes. If in text mode, any
+        "input" should be a string, and stdout and stderr will be strings decoded
+        according to locale encoding, or by "encoding" if set. Text mode is
+        triggered by setting any of text, encoding, errors or universal_newlines.
+    
+        The other arguments are the same as for the Popen constructor.
+        """
+        if input is not None:
+            if kwargs.get('stdin') is not None:
+                raise ValueError('stdin and input arguments may not both be used.')
+            kwargs['stdin'] = PIPE
+    
+        if capture_output:
+            if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:
+                raise ValueError('stdout and stderr arguments may not be used '
+                                 'with capture_output.')
+            kwargs['stdout'] = PIPE
+            kwargs['stderr'] = PIPE
+    
+        with Popen(*popenargs, **kwargs) as process:
+            try:
+                stdout, stderr = process.communicate(input, timeout=timeout)
+            except TimeoutExpired as exc:
+                process.kill()
+                if _mswindows:
+                    # Windows accumulates the output in a single blocking
+                    # read() call run on child threads, with the timeout
+                    # being done in a join() on those threads.  communicate()
+                    # _after_ kill() is required to collect that and add it
+                    # to the exception.
+                    exc.stdout, exc.stderr = process.communicate()
+                else:
+                    # POSIX _communicate already populated the output so
+                    # far into the TimeoutExpired exception.
+                    process.wait()
+                raise
+            except:  # Including KeyboardInterrupt, communicate handled that.
+                process.kill()
+                # We don't call process.wait() as .__exit__ does that for us.
+                raise
+            retcode = process.poll()
+            if check and retcode:
+>               raise CalledProcessError(retcode, process.args,
+                                         output=stdout, stderr=stderr)
+E               subprocess.CalledProcessError: Command '['git', '-C', '/tmp/pytest-of-box/pytest-2/test_code_review_posts_comment0/push', 'commit', '-q', '-m', 'test: commit novo do C50']' returned non-zero exit status 128.
+
+/home/box/.local/share/uv/python/cpython-3.11.17-linux-x86_64-gnu/lib/python3.11/subprocess.py:571: CalledProcessError
+----------------------------- Captured stderr call -----------------------------
+Cloning into '/tmp/pytest-of-box/pytest-2/test_code_review_posts_comment0/push'...
+Author identity unknown
+
+*** Please tell me who you are.
+
+Run
+
+  git config --global user.email "you@example.com"
+  git config --global user.name "Your Name"
+
+to set your account's default identity.
+Omit --global to set the identity only in this repository.
+
+fatal: unable to auto-detect email address (got 'box@grok-bot-vm-482221330.(none)')
+==================================== PASSES ====================================
+=========================== short test summary info ============================
+PASSED tests/integration/test_plugin_caps.py::test_write_outside_denied[claude]
+PASSED tests/integration/test_plugin_caps.py::test_write_outside_denied[opencode]
+PASSED tests/integration/test_plugin_caps.py::test_shell_escape_denied[claude]
+PASSED tests/integration/test_plugin_caps.py::test_shell_escape_denied[opencode]
+PASSED tests/integration/test_plugin_caps.py::test_output_option_denied[claude]
+PASSED tests/integration/test_plugin_caps.py::test_output_option_denied[opencode]
+PASSED tests/integration/test_plugin_caps.py::test_caller_cwd_not_writable[claude]
+PASSED tests/integration/test_plugin_caps.py::test_caller_cwd_not_writable[opencode]
+PASSED tests/integration/test_plugin_caps.py::test_command_outside_denied[claude]
+PASSED tests/integration/test_plugin_caps.py::test_command_outside_denied[opencode]
+PASSED tests/integration/test_plugin_caps.py::test_workspace_config_ignored[claude]
+PASSED tests/integration/test_plugin_caps.py::test_workspace_config_ignored[opencode]
+PASSED tests/integration/test_plugin_caps.py::test_plugin_skill_loaded[claude]
+PASSED tests/integration/test_plugin_caps.py::test_plugin_skill_loaded[opencode]
+PASSED tests/integration/test_plugin_caps.py::test_run_plugin_claude_end_to_end
+PASSED tests/integration/test_builtin_plugins.py::test_code_review_loads_in_claude[code-review]
+PASSED tests/integration/test_builtin_plugins.py::test_code_review_loads_in_claude[bug-verify]
+PASSED tests/integration/test_builtin_plugins.py::test_bug_verify_reproduces
+SKIPPED [2] tests/integration/test_plugin_caps.py:42: write é unsupported no codex pela matriz do pacote
+SKIPPED [3] tests/integration/test_plugin_caps.py:42: commands é unsupported no codex pela matriz do pacote
+SKIPPED [1] tests/integration/test_plugin_caps.py:42: workspace_config é unsupported no codex pela matriz do pacote
+SKIPPED [1] tests/integration/test_plugin_caps.py:42: skills é unsupported no codex pela matriz do pacote
+SKIPPED [1] tests/integration/test_plugin_caps.py:42: network é unsupported no claude pela matriz do pacote
+SKIPPED [1] tests/integration/test_plugin_caps.py:42: network é unsupported no opencode pela matriz do pacote
+SKIPPED [1] tests/integration/test_plugin_caps.py:42: network é unsupported no codex pela matriz do pacote
+FAILED tests/integration/test_builtin_plugins.py::test_code_review_posts_comment_review
+============= 1 failed, 18 passed, 10 skipped in 285.65s (0:04:45) =============
+PYTEST_EXIT=1

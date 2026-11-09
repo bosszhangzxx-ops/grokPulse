@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+"""`curl` falso dos testes do `setup cli add`: para a URL de um instalador oficial (door 19), imprime um script que
+roda `fake_installer.py <tool>` com os argumentos que o shell passar ao script; outra URL sai com `22`."""
+
+import os
+import shlex
+import sys
+
+INSTALLERS = {
+    "https://claude.ai/install.sh": "claude",
+    "https://opencode.ai/install": "opencode",
+    "https://chatgpt.com/codex/install.sh": "codex",
+}
+
+url = sys.argv[-1]
+tool = INSTALLERS.get(url)
+if tool is None:
+    print(f"curl: (22) fake curl does not know {url}", file=sys.stderr)
+    sys.exit(22)
+installer = os.path.join(os.path.dirname(os.path.realpath(__file__)), "fake_installer.py")
+print(f'exec python3 {shlex.quote(installer)} {tool} "$@"')

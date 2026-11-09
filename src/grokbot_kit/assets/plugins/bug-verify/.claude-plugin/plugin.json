@@ -1,0 +1,5 @@
+{
+  "name": "bug-verify",
+  "version": "0.1.0",
+  "description": "Verifica um alerta de erro contra o código: reproduz com um teste quando dá e aponta os suspeitos"
+}

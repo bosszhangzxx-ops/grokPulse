@@ -1,0 +1,53 @@
+[project]
+name = "grokbot-kit"
+version = "0.7.0"
+description = "Grok Bot integration kit: delegate tasks to headless coding agents (opencode, Claude Code, Codex) and wake the right Grok Bot routine when they finish or need input."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Rodrigo Pasini" }]
+requires-python = ">=3.11"
+dependencies = []
+classifiers = [
+    "Environment :: Console",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+[project.urls]
+Repository = "https://github.com/rodrigo-pasini/grokbot-kit"
+
+[project.scripts]
+grokbot-kit = "grokbot_kit.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.9.26,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "jsonschema>=4.26.0",
+    "mypy>=2.4.0",
+    "pre-commit>=4.7.0",
+    "pytest>=9.1.1",
+    "pyyaml>=6.0.3",
+    "ruff>=0.17.1",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+extend-exclude = [".claude", ".agents"]
+force-exclude = true
+
+[tool.mypy]
+strict = true
+files = ["src", "tools"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not integration'"
+markers = ["integration: roda só no box, com as CLIs reais ou o GitHub"]

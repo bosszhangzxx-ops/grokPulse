@@ -1,0 +1,53 @@
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
+default_stages: [pre-commit]
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.1
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+        exclude: ^(\.claude|\.agents)/
+      - id: ruff-format
+        exclude: ^(\.claude|\.agents)/
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-toml
+        exclude: ^(\.claude|\.agents)/
+      - id: check-yaml
+        exclude: ^(\.claude|\.agents)/
+      - id: end-of-file-fixer
+        exclude: ^(\.claude|\.agents)/
+      - id: trailing-whitespace
+        exclude: ^(\.claude|\.agents)/
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: system
+        types: [python]
+        pass_filenames: false
+        exclude: ^(\.claude|\.agents)/
+      - id: sdlc-pre-commit
+        name: sdlc pre-commit (no commit on main, no code in the main clone)
+        entry: python3 tools/sdlc.py pre-commit
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+        exclude: ^(\.claude|\.agents)/
+      - id: sdlc-commit-msg
+        name: sdlc commit-msg (Conventional Commits, no co-author)
+        entry: python3 tools/sdlc.py commit-msg
+        language: system
+        stages: [commit-msg]
+        exclude: ^(\.claude|\.agents)/
+      - id: sdlc-pre-push
+        name: sdlc pre-push (branch <type>/<issue>/<slug>)
+        entry: sh -c 'case "$PRE_COMMIT_REMOTE_BRANCH" in refs/heads/*) exec python3 tools/sdlc.py branch "${PRE_COMMIT_REMOTE_BRANCH#refs/heads/}" ;; esac'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+        exclude: ^(\.claude|\.agents)/

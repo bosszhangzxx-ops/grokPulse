@@ -1,0 +1,32 @@
+schema = "grokbot-kit.plugin/v0"
+name = "code-review"
+version = "0.1.0"
+description = "Revisa um pull request do GitHub e posta um único review COMMENT com comentários inline"
+prompt = "prompt.md"
+
+[inputs.pr]
+kind = "repo"
+required = true
+
+[capabilities]
+write = "task-dir"
+network = "on"
+commands = [
+    "gh pr view",
+    "gh pr diff",
+    "gh pr review",
+    "gh pr comment",
+    "gh api",
+    "git log",
+    "git diff",
+    "git show",
+    "git blame",
+    "pytest",
+    "npm test",
+    "go test",
+    "cargo test",
+]
+
+[result]
+required = ["summary", "verdict", "findings", "review_url"]
+max_bytes = 16384

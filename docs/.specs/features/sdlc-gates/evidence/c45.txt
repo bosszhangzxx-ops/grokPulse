@@ -1,0 +1,7 @@
+# C45 - host de dev, 2026-10-29T13:20:42Z
+# claude 2.1.312 (Claude Code)
+# cwd: /home/rodrigo/projetos/pessoal/worktrees/grokbot-kit/31-sdlc-gates (HEAD 633df0a); CLAUDE.md/CLAUDE.local.md na raiz: 0
+$ claude -p "Qual o budget do tlc-spec-lean neste projeto? Responda só o valor."
+150k
+# exit 0
+# grep -q 150k: exit 0
